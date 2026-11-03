@@ -1,0 +1,36 @@
+name: Actualizar datos del INDEC
+
+on:
+  schedule:
+    - cron: "20 21 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  actualizar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Descargar datos
+        env:
+          INDEC_API_TOKEN: ${{ secrets.INDEC_API_TOKEN }}
+        run: python3 scripts/actualizar_datos.py
+      - name: Armar la página
+        run: python3 scripts/armar_index.py
+      - name: Guardar si hubo cambios
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -N data/indec_resumen.json 2>/dev/null || true
+          if git diff --quiet -- data/ index.html; then
+            echo "Sin datos nuevos."
+          else
+            git add data/ index.html
+            git commit -m "Datos actualizados del INDEC"
+            git push
+          fi
